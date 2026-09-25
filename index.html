@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TabrizJoy - جاهای دیدنی و تفریحی تبریز</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Tahoma, sans-serif; background:#faf7f5; }
+  header { background:#6b2fb3; color:#fff; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; }
+  header h1 { margin:0; font-size:20px; }
+  #filters { display:flex; flex-wrap:wrap; gap:8px; padding:10px 16px; background:#fff; border-bottom:1px solid #eee; }
+  select, button.chip { padding:6px 10px; border-radius:20px; border:1px solid #ddd; background:#f4f0fb; cursor:pointer; font-family:inherit; }
+  button.chip.active { background:#6b2fb3; color:#fff; border-color:#6b2fb3; }
+  #map { height: calc(100vh - 110px); width:100%; }
+  .popup-card { min-width:180px; }
+  .popup-card h3 { margin:0 0 4px; font-size:15px; }
+  .popup-card p { margin:2px 0; font-size:13px; color:#444; }
+  .popup-card a { color:#6b2fb3; text-decoration:none; font-size:13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>TabrizJoy 🗺️</h1>
+  <span id="count" style="font-size:13px;"></span>
+</header>
+
+<div id="filters">
+  <select id="categoryFilter"><option value="">همه دسته‌ها</option></select>
+  <button class="chip" data-bucket="budget">اقتصادی</button>
+  <button class="chip" data-bucket="mid">متوسط</button>
+  <button class="chip" data-bucket="high">بالا</button>
+  <button class="chip" data-bucket="premium">لوکس</button>
+  <button class="chip" id="clearBtn">پاک کردن فیلتر</button>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ---- CONFIG: fill in your Supabase project values ----
+const SUPABASE_URL = "https://azdjpfciniooumaycaqk.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ImtDa5wKUtUeymxDeTj98Q_PYRtJH9W";
+// -------------------------------------------------------
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const map = L.map('map').setView([38.0800, 46.2919], 13); // Tabriz center
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+// user's live location
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(pos => {
+    L.circleMarker([pos.coords.latitude, pos.coords.longitude], {
+      radius: 8, color: '#2563eb', fillColor:'#3b82f6', fillOpacity:0.9
+    }).addTo(map).bindPopup("موقعیت شما");
+  });
+}
+
+let allPlaces = [];
+let categories = [];
+let activeCategory = "";
+let activeBucket = "";
+let markersLayer = L.layerGroup().addTo(map);
+
+const bucketLabel = { budget:'اقتصادی', mid:'متوسط', high:'بالا', premium:'لوکس' };
+
+async function loadCategories() {
+  const { data } = await sb.from('categories').select('*').order('name_fa');
+  categories = data || [];
+  const sel = document.getElementById('categoryFilter');
+  categories.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id; opt.textContent = c.name_fa;
+    sel.appendChild(opt);
+  });
+}
+
+async function loadPlaces() {
+  const { data, error } = await sb.from('places').select('*').eq('is_active', true);
+  if (error) { console.error(error); return; }
+  allPlaces = data || [];
+  renderMarkers();
+}
+
+function renderMarkers() {
+  markersLayer.clearLayers();
+  let filtered = allPlaces;
+  if (activeCategory) filtered = filtered.filter(p => p.category_id === activeCategory);
+  if (activeBucket) filtered = filtered.filter(p => p.price_bucket === activeBucket);
+
+  filtered.forEach(p => {
+    const marker = L.marker([p.lat, p.lng]);
+    const igLink = p.instagram ? `<a href="https://instagram.com/${p.instagram.replace('@','')}" target="_blank">اینستاگرام</a>` : '';
+    const photo = p.cover_photo_url ? `<img src="${p.cover_photo_url}" style="width:100%;border-radius:6px;margin-bottom:6px;">` : '';
+    marker.bindPopup(`
+      <div class="popup-card">
+        ${photo}
+        <h3>${p.name}</h3>
+        <p>${p.caption || ''}</p>
+        <p>💰 ${bucketLabel[p.price_bucket] || ''}${p.price_avg_toman ? ' (~' + p.price_avg_toman.toLocaleString() + ' تومان)' : ''}</p>
+        <p>📞 ${p.phone || '-'}</p>
+        <p>📍 ${p.address || ''}</p>
+        ${igLink}
+      </div>
+    `);
+    markersLayer.addLayer(marker);
+  });
+
+  document.getElementById('count').textContent = `${filtered.length} مکان`;
+}
+
+document.getElementById('categoryFilter').addEventListener('change', e => {
+  activeCategory = e.target.value;
+  renderMarkers();
+});
+
+document.querySelectorAll('.chip[data-bucket]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.chip[data-bucket]').forEach(b => b.classList.remove('active'));
+    if (activeBucket === btn.dataset.bucket) {
+      activeBucket = "";
+    } else {
+      activeBucket = btn.dataset.bucket;
+      btn.classList.add('active');
+    }
+    renderMarkers();
+  });
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  activeCategory = ""; activeBucket = "";
+  document.getElementById('categoryFilter').value = "";
+  document.querySelectorAll('.chip[data-bucket]').forEach(b => b.classList.remove('active'));
+  renderMarkers();
+});
+
+loadCategories();
+loadPlaces();
+</script>
+</body>
+</html>
