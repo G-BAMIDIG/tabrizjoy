@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>پنل مدیریت — تبریز جوی</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f2e8d5; --ink:#241d15; --turquoise:#1b6f6a; --brick:#a1392b; --gold:#c1922f;
+    --line:#d9c9a3; --paper-dark:#e8dabb; --card:#faf5e8;
+  }
+  * { box-sizing:border-box; font-family:'Vazirmatn', Tahoma, sans-serif; }
+  body { margin:0; background:var(--paper); color:var(--ink); }
+
+  header {
+    background:var(--turquoise); color:var(--paper); padding:16px 22px;
+    display:flex; justify-content:space-between; align-items:center;
+    border-bottom:4px solid var(--brick);
+  }
+  header h1 { font-family:'Lalezar', sans-serif; font-size:22px; font-weight:400; margin:0; }
+
+  #loginBox {
+    max-width:360px; margin:100px auto; background:var(--card); padding:28px;
+    border:2px solid var(--ink);
+  }
+  #loginBox h2 { font-family:'Lalezar', sans-serif; font-weight:400; font-size:22px; margin-top:0; color:var(--brick); }
+  #loginBox input {
+    width:100%; padding:10px 12px; margin:6px 0; border:2px solid var(--line); background:var(--paper); font-size:14px;
+  }
+  #loginBox input:focus { outline:none; border-color:var(--turquoise); }
+  #loginBox button {
+    width:100%; margin-top:8px; padding:11px; border:2px solid var(--ink); background:var(--brick);
+    color:var(--paper); font-weight:700; font-size:14px; cursor:pointer;
+  }
+  #loginBox button:disabled { background:#b8ac8f; border-color:#b8ac8f; cursor:not-allowed; }
+  #loginError { color:var(--brick); font-size:13px; }
+
+  #app { display:none; max-width:920px; margin:24px auto; padding:0 16px 60px; }
+  .card { background:var(--card); border:2px solid var(--line); padding:20px; margin-bottom:18px; }
+  .card h2 { font-family:'Lalezar', sans-serif; font-weight:400; font-size:19px; margin-top:0; color:var(--brick); }
+  .card input, .card select, .card textarea {
+    width:100%; padding:9px 11px; margin:6px 0; border:2px solid var(--line); background:var(--paper); font-size:14px;
+  }
+  .card input:focus, .card select:focus, .card textarea:focus { outline:none; border-color:var(--turquoise); }
+  .card input[type=file] { border-style:dashed; cursor:pointer; }
+  .actionBtn {
+    background:var(--turquoise); color:var(--paper); border:2px solid var(--ink);
+    padding:10px 18px; font-weight:700; font-size:14px; cursor:pointer; margin-top:8px;
+  }
+  .actionBtn:disabled { background:#b8ac8f; cursor:not-allowed; }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:right; padding:8px 6px; color:var(--ink); opacity:.65; font-weight:700; border-bottom:2px solid var(--ink); }
+  td { text-align:right; padding:8px 6px; border-bottom:1px solid var(--line); }
+  .badge { padding:3px 10px; font-size:11px; font-weight:700; border:1.5px solid; }
+  .paid { color:var(--turquoise); border-color:var(--turquoise); }
+  .unpaid { color:var(--brick); border-color:var(--brick); }
+  .rowActions button {
+    font-size:12px; padding:5px 9px; margin-inline-end:4px; border:2px solid var(--ink); background:var(--paper); cursor:pointer;
+  }
+  #logoutBtn { background:transparent; color:var(--paper); border:2px solid var(--paper); padding:7px 14px; cursor:pointer; font-weight:600; }
+  .uploadStatus { font-size:12px; color:var(--turquoise); }
+</style>
+</head>
+<body>
+
+<div id="loginBox">
+  <h2>ورود ادمین</h2>
+  <input id="email" type="email" placeholder="ایمیل">
+  <input id="password" type="password" placeholder="رمز عبور">
+  <button id="loginBtn" onclick="login()">ورود</button>
+  <p id="loginError"></p>
+</div>
+
+<div id="app">
+  <header>
+    <h1>پنل مدیریت تبریز جوی</h1>
+    <button id="logoutBtn" onclick="logout()">خروج</button>
+  </header>
+
+  <div style="max-width:920px;margin:16px auto;padding:0 16px;">
+
+    <div class="card">
+      <h2>افزودن دسته‌بندی</h2>
+      <input id="catFa" placeholder="نام فارسی (مثلا: کافه)">
+      <input id="catEn" placeholder="نام انگلیسی (cafe)">
+      <button class="actionBtn" onclick="addCategory()">افزودن دسته</button>
+    </div>
+
+    <div class="card">
+      <h2>افزودن / ویرایش مکان</h2>
+      <input type="hidden" id="placeId">
+      <input id="pName" placeholder="نام مکان">
+      <select id="pCategory"></select>
+      <input id="pCaption" placeholder="کپشن کوتاه">
+      <textarea id="pDescription" placeholder="توضیحات"></textarea>
+      <input id="pPhone" placeholder="شماره تماس">
+      <input id="pInstagram" placeholder="آیدی اینستاگرام">
+      <input id="pAddress" placeholder="آدرس">
+      <input id="pLat" placeholder="عرض جغرافیایی (lat)">
+      <input id="pLng" placeholder="طول جغرافیایی (lng)">
+      <label style="font-size:12px;opacity:.7;">عکس اصلی مکان:</label>
+      <input id="pCoverFile" type="file" accept="image/*">
+      <span id="coverUploadStatus" class="uploadStatus"></span>
+      <input type="hidden" id="pCoverUrl">
+      <button class="actionBtn" onclick="savePlace()">ذخیره مکان</button>
+    </div>
+
+    <div class="card">
+      <h2>مکان‌ها و وضعیت اشتراک</h2>
+      <table id="placesTable">
+        <thead><tr><th>نام</th><th>دسته</th><th>تاریخ پرداخت</th><th>پایان اشتراک</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>ثبت پرداخت اشتراک</h2>
+      <select id="subPlace"></select>
+      <input id="subAmount" placeholder="مبلغ (تومان)">
+      <label style="font-size:12px;opacity:.7;">تاریخ پرداخت:</label>
+      <input id="subPaidAt" type="date">
+      <label style="font-size:12px;opacity:.7;">تاریخ پایان اشتراک:</label>
+      <input id="subPeriodEnd" type="date">
+      <input type="hidden" id="subPeriodStart">
+      <label style="font-size:12px;opacity:.7;">عکس رسید:</label>
+      <input id="subReceiptFile" type="file" accept="image/*">
+      <span id="receiptUploadStatus" class="uploadStatus"></span>
+      <input type="hidden" id="subReceiptUrl">
+      <input id="subNotes" placeholder="یادداشت">
+      <button class="actionBtn" onclick="addSubscription()">ثبت پرداخت</button>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://azdjpfciniooumaycaqk.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6ZGpwZmNpbmlvb3VtYXljYXFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzNTg3NjUsImV4cCI6MjEwNTkzNDc2NX0.wMySkMtIm6ulLU7sB5qRCLdsNiH2ALIN80iFJDpjZk0";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let categories = [], places = [];
+
+// ---- login rate limiting: 1 attempt per 60 seconds, tracked in this browser ----
+function secondsLeftToRetry() {
+  const last = parseInt(localStorage.getItem('lastLoginAttempt') || '0', 10);
+  const elapsed = (Date.now() - last) / 1000;
+  return Math.max(0, Math.ceil(60 - elapsed));
+}
+function updateLoginButtonState() {
+  const left = secondsLeftToRetry();
+  const btn = document.getElementById('loginBtn');
+  if (left > 0) {
+    btn.disabled = true;
+    btn.textContent = `صبر کن (${left})`;
+    setTimeout(updateLoginButtonState, 1000);
+  } else {
+    btn.disabled = false;
+    btn.textContent = 'ورود';
+  }
+}
+updateLoginButtonState();
+
+async function checkSession() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) showApp();
+}
+
+async function login() {
+  if (secondsLeftToRetry() > 0) return;
+  localStorage.setItem('lastLoginAttempt', Date.now().toString());
+  updateLoginButtonState();
+
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { document.getElementById('loginError').textContent = "ایمیل یا رمز اشتباه است"; return; }
+  showApp();
+}
+
+async function logout() { await sb.auth.signOut(); location.reload(); }
+
+function showApp() {
+  document.getElementById('loginBox').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadCategories();
+  loadPlaces();
+}
+
+async function loadCategories() {
+  const { data } = await sb.from('categories').select('*').order('name_fa');
+  categories = data || [];
+  document.getElementById('pCategory').innerHTML = categories.map(c => `<option value="${c.id}">${c.name_fa}</option>`).join('');
+}
+
+async function addCategory() {
+  const name_fa = document.getElementById('catFa').value;
+  const name_en = document.getElementById('catEn').value;
+  if (!name_fa) return alert("نام فارسی الزامی است");
+  await sb.from('categories').insert({ name_fa, name_en });
+  document.getElementById('catFa').value = ''; document.getElementById('catEn').value = '';
+  loadCategories();
+}
+
+// ---- real file upload to Supabase Storage ----
+async function uploadFile(fileInputId, bucket, statusElId, hiddenUrlId) {
+  const fileInput = document.getElementById(fileInputId);
+  const file = fileInput.files[0];
+  if (!file) return null;
+  const statusEl = document.getElementById(statusElId);
+  statusEl.textContent = "در حال آپلود...";
+  const path = `${Date.now()}_${file.name}`;
+  const { error } = await sb.storage.from(bucket).upload(path, file);
+  if (error) { statusEl.textContent = "خطا در آپلود"; return null; }
+  const { data } = sb.storage.from(bucket).getPublicUrl(path);
+  document.getElementById(hiddenUrlId).value = data.publicUrl;
+  statusEl.textContent = "آپلود شد ✓";
+  return data.publicUrl;
+}
+
+document.getElementById('pCoverFile').addEventListener('change', () => uploadFile('pCoverFile', 'place-photos', 'coverUploadStatus', 'pCoverUrl'));
+document.getElementById('subReceiptFile').addEventListener('change', () => uploadFile('subReceiptFile', 'receipts', 'receiptUploadStatus', 'subReceiptUrl'));
+
+async function savePlace() {
+  const id = document.getElementById('placeId').value;
+  const payload = {
+    name: document.getElementById('pName').value,
+    category_id: document.getElementById('pCategory').value,
+    caption: document.getElementById('pCaption').value,
+    description: document.getElementById('pDescription').value,
+    phone: document.getElementById('pPhone').value,
+    instagram: document.getElementById('pInstagram').value,
+    address: document.getElementById('pAddress').value,
+    lat: parseFloat(document.getElementById('pLat').value),
+    lng: parseFloat(document.getElementById('pLng').value),
+    cover_photo_url: document.getElementById('pCoverUrl').value || null,
+  };
+  if (!payload.name || isNaN(payload.lat) || isNaN(payload.lng)) return alert("نام و مختصات الزامی است");
+
+  if (id) { await sb.from('places').update(payload).eq('id', id); }
+  else { await sb.from('places').insert(payload); }
+
+  document.getElementById('placeId').value = '';
+  ['pName','pCaption','pDescription','pPhone','pInstagram','pAddress','pLat','pLng']
+    .forEach(i => document.getElementById(i).value = '');
+  document.getElementById('pCoverUrl').value = '';
+  document.getElementById('coverUploadStatus').textContent = '';
+  loadPlaces();
+}
+
+async function loadPlaces() {
+  const { data } = await sb.from('places').select('*, categories(name_fa)').order('created_at', {ascending:false});
+  places = data || [];
+  document.getElementById('subPlace').innerHTML = places.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+  const { data: subs } = await sb.from('subscriptions').select('*').order('paid_at', {ascending:false});
+  const tbody = document.querySelector('#placesTable tbody');
+  tbody.innerHTML = places.map(p => {
+    const lastSub = (subs || []).find(s => s.place_id === p.id);
+    const today = new Date().toISOString().slice(0,10);
+    const isPaid = lastSub && lastSub.period_end >= today;
+    return `<tr>
+      <td>${p.name}</td>
+      <td>${p.categories?.name_fa || '-'}</td>
+      <td>${lastSub ? lastSub.paid_at : '-'}</td>
+      <td>${lastSub ? lastSub.period_end : '-'}</td>
+      <td><span class="badge ${isPaid ? 'paid' : 'unpaid'}">${isPaid ? 'فعال' : 'پرداخت نشده'}</span></td>
+      <td class="rowActions">
+        <button onclick="editPlace('${p.id}')">ویرایش</button>
+        <button onclick="deletePlace('${p.id}')">حذف</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function editPlace(id) {
+  const p = places.find(x => x.id === id);
+  document.getElementById('placeId').value = p.id;
+  document.getElementById('pName').value = p.name || '';
+  document.getElementById('pCategory').value = p.category_id || '';
+  document.getElementById('pCaption').value = p.caption || '';
+  document.getElementById('pDescription').value = p.description || '';
+  document.getElementById('pPhone').value = p.phone || '';
+  document.getElementById('pInstagram').value = p.instagram || '';
+  document.getElementById('pAddress').value = p.address || '';
+  document.getElementById('pLat').value = p.lat || '';
+  document.getElementById('pLng').value = p.lng || '';
+  document.getElementById('pCoverUrl').value = p.cover_photo_url || '';
+  window.scrollTo(0,0);
+}
+
+async function deletePlace(id) {
+  if (!confirm("حذف شود؟")) return;
+  await sb.from('places').delete().eq('id', id);
+  loadPlaces();
+}
+
+async function addSubscription() {
+  const paidAt = document.getElementById('subPaidAt').value;
+  const payload = {
+    place_id: document.getElementById('subPlace').value,
+    amount_toman: parseInt(document.getElementById('subAmount').value),
+    paid_at: paidAt,
+    period_start: paidAt,
+    period_end: document.getElementById('subPeriodEnd').value,
+    receipt_photo_url: document.getElementById('subReceiptUrl').value || null,
+    notes: document.getElementById('subNotes').value,
+  };
+  if (!payload.place_id || !payload.amount_toman || !payload.paid_at || !payload.period_end) {
+    return alert("همه فیلدهای ضروری را پر کنید");
+  }
+  await sb.from('subscriptions').insert(payload);
+  ['subAmount','subPaidAt','subPeriodEnd','subNotes'].forEach(i => document.getElementById(i).value = '');
+  document.getElementById('subReceiptUrl').value = '';
+  document.getElementById('receiptUploadStatus').textContent = '';
+  loadPlaces();
+}
+
+checkSession();
+</script>
+</body>
+</html>
